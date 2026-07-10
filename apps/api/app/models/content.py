@@ -99,6 +99,7 @@ class ContentScore(TimestampMixin, Base):
     feedback: Mapped[list[str]] = mapped_column(JSONColumn)
     dimensions: Mapped[dict] = mapped_column(JSONColumn, default=dict)
     risk_flags: Mapped[list[str]] = mapped_column(JSONColumn, default=list)
+    risk_details: Mapped[dict] = mapped_column(JSONColumn, default=dict)
     score_version: Mapped[str] = mapped_column(String(20), default="v2")
 
     generated_content: Mapped[GeneratedContent] = relationship(back_populates="score")

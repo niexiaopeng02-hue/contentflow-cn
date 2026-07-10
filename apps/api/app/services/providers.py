@@ -10,6 +10,7 @@ from app.core.config import get_settings
 from app.prompts import (
     ANALYSIS_PROMPT,
     DOUYIN_PROMPT,
+    EVALUATOR_PROMPT,
     REWRITE_PROMPT,
     STRATEGY_PROMPT,
     WECHAT_PROMPT,
@@ -566,8 +567,15 @@ class OpenAIProvider(AIProvider):
         content: XiaohongshuOutput | DouyinOutput | WechatOutput | dict,
         strategy: PlatformStrategy | None = None,
     ) -> ContentScoreSchema:
-        # Keep deterministic rule scoring as the source of truth for MVP persistence.
-        return evaluate_content_v2(platform, content, strategy)
+        return await self._json_call(
+            EVALUATOR_PROMPT,
+            {
+                "platform": platform,
+                "content": content.model_dump() if hasattr(content, "model_dump") else content,
+                "strategy": strategy.model_dump() if strategy else None,
+            },
+            ContentScoreSchema,
+        )
 
     async def rewrite_content(
         self,

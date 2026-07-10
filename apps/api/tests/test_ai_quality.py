@@ -1,8 +1,11 @@
 import pytest
 from pydantic import ValidationError
 
+from app.core.config import get_settings
+from app.prompts import EVALUATOR_PROMPT
 from app.schemas import (
     ContentAnalysisSchema,
+    ContentScoreSchema,
     DouyinOutput,
     PlatformStrategy,
     ProjectContext,
@@ -11,7 +14,7 @@ from app.schemas import (
     XiaohongshuOutput,
 )
 from app.services.pipeline import run_text_pipeline
-from app.services.providers import MockProvider, ProviderTimeoutError
+from app.services.providers import MockProvider, OpenAIProvider, ProviderTimeoutError
 from app.services.quality import evaluate_ai_tone_risk, evaluate_content_v2
 
 RAW_TEXT = (
@@ -138,6 +141,47 @@ def test_hybrid_score() -> None:
     )
     assert score.score_version == "v2"
     assert score.ai_risk_level in {"low", "medium", "high"}
+
+
+@pytest.mark.asyncio
+async def test_openai_provider_uses_evaluator_prompt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    get_settings.cache_clear()
+    provider = OpenAIProvider()
+    captured: dict[str, object] = {}
+
+    async def fake_json_call(prompt, payload, schema):
+        captured["prompt"] = prompt
+        captured["payload"] = payload
+        captured["schema"] = schema
+        return ContentScoreSchema(
+            overall_score=88,
+            hook_score=85,
+            readability_score=90,
+            value_score=88,
+            structure_score=87,
+            ai_risk_score=92,
+            feedback=["clear"],
+            dimensions={"title_score": 85},
+            risk_flags=[],
+            ai_risk_level="low",
+            risk_reasons=[],
+            rewrite_suggestions=[],
+        )
+
+    monkeypatch.setattr(provider, "_json_call", fake_json_call)
+    score = await provider.evaluate_content(
+        "xiaohongshu",
+        {"titles": ["Title"], "cta": "Save"},
+        strategy(),
+    )
+    assert captured["prompt"] == EVALUATOR_PROMPT
+    assert captured["schema"] is ContentScoreSchema
+    assert captured["payload"]["platform"] == "xiaohongshu"
+    assert score.overall_score == 88
+    get_settings.cache_clear()
 
 
 @pytest.mark.asyncio

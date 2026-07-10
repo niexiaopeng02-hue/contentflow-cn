@@ -1,7 +1,8 @@
 from fastapi import HTTPException
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import GeneratedContent, Project
+from app.models import ContentAnalysis, ContentScore, GeneratedContent, Project
 from app.repositories import (
     AnalysisRepository,
     GeneratedContentRepository,
@@ -31,6 +32,7 @@ from app.services.providers import PipelineError, ProviderError, get_provider
 
 
 def score_to_schema(score) -> ContentScoreSchema:
+    risk_details = getattr(score, "risk_details", {}) or {}
     return ContentScoreSchema(
         overall_score=score.overall_score,
         hook_score=score.hook_score,
@@ -42,6 +44,9 @@ def score_to_schema(score) -> ContentScoreSchema:
         dimensions=getattr(score, "dimensions", {}) or {},
         risk_flags=getattr(score, "risk_flags", []) or [],
         score_version=getattr(score, "score_version", "v2") or "v2",
+        ai_risk_level=risk_details.get("ai_risk_level", "medium"),
+        risk_reasons=risk_details.get("risk_reasons", []),
+        rewrite_suggestions=risk_details.get("rewrite_suggestions", []),
     )
 
 
@@ -59,6 +64,11 @@ async def persist_score(
         feedback=score.feedback,
         dimensions=score.dimensions,
         risk_flags=score.risk_flags,
+        risk_details={
+            "ai_risk_level": score.ai_risk_level,
+            "risk_reasons": score.risk_reasons,
+            "rewrite_suggestions": score.rewrite_suggestions,
+        },
         score_version=score.score_version,
     )
 
@@ -199,74 +209,25 @@ async def generate_project(
     project.failure_stage = None
     project.retryable = False
     project.target_platforms = payload.target_platforms
-    await session.flush()
+    source = await SourceContentRepository(session).create(
+        project_id=project_id,
+        title=payload.title,
+        raw_text=payload.raw_text,
+        cleaned_text=payload.raw_text.strip(),
+    )
+    await session.commit()
     try:
-        context = ProjectContext(
-            category=project.category,
-            source_type=project.source_type,
-            content_style=project.content_style,
-            target_audience=project.target_audience,
-            audience_pain_points=project.audience_pain_points,
-            audience_knowledge_level=project.audience_knowledge_level,
-            content_goal=project.content_goal,
-        )
-        cleaned_text, analysis_schema, generated = await run_text_pipeline(
-            payload.raw_text, target_platforms=payload.target_platforms, context=context
-        )
-        source = await SourceContentRepository(session).create(
-            project_id=project_id,
-            title=payload.title,
-            raw_text=payload.raw_text,
-            cleaned_text=cleaned_text,
-        )
-        analysis = await AnalysisRepository(session).create(
-            source_content_id=source.id,
-            analysis_json=analysis_schema.model_dump(),
-        )
-        for item in generated:
-            generated_model = await GeneratedContentRepository(session).create(
-                analysis_id=analysis.id,
-                platform=item.platform,
-                content_type=item.content_type,
-                version=1,
-                source="generated",
-                content_json=item.content.model_dump()
-                if hasattr(item.content, "model_dump")
-                else dict(item.content),
-                markdown_export=item.markdown_export,
-            )
-            generated_model.content_group_id = generated_model.id
-            await session.flush()
-            await persist_score(session, generated_model.id, item.score)
-            item.id = generated_model.id
-            item.content_group_id = generated_model.id
-        project.status = "completed"
-        await session.commit()
-        return PipelineResponse(
-            source_content_id=source.id,
-            analysis_id=analysis.id,
-            analysis=analysis_schema,
-            generated_contents=generated,
+        return await _complete_generation_for_source(
+            session,
+            project_id,
+            source.id,
+            payload.target_platforms,
         )
     except (ProviderError, PipelineError) as exc:
-        await session.rollback()
-        project = await project_repo.get_by_id(project_id)
-        if project:
-            project.status = "failed"
-            project.failure_stage = getattr(exc, "stage", "pipeline")
-            project.error_message = "Pipeline failed safely. Please retry."
-            project.retryable = getattr(exc, "retryable", True)
-            await session.commit()
+        await _mark_project_failed(session, project_id, exc)
         raise HTTPException(status_code=500, detail="Pipeline failed safely") from exc
     except Exception as exc:
-        await session.rollback()
-        project = await project_repo.get_by_id(project_id)
-        if project:
-            project.status = "failed"
-            project.failure_stage = "pipeline"
-            project.error_message = "Pipeline failed safely. Please retry."
-            project.retryable = True
-            await session.commit()
+        await _mark_project_failed(session, project_id, exc)
         raise HTTPException(status_code=500, detail="Pipeline failed safely") from exc
 
 
@@ -279,15 +240,111 @@ async def retry_project(session: AsyncSession, project_id: str) -> PipelineRespo
     source = project.source_contents[-1] if project.source_contents else None
     if not source:
         raise HTTPException(status_code=400, detail="Project has no source content to retry")
-    return await generate_project(
-        session,
-        project_id,
-        ProjectGenerateRequest(
-            title=source.title,
-            raw_text=source.raw_text,
-            target_platforms=project.target_platforms,
-        ),
+    project.status = "processing"
+    project.error_message = None
+    project.failure_stage = None
+    project.retryable = False
+    await _clear_generation_artifacts(session, source.id)
+    await session.commit()
+    try:
+        return await _complete_generation_for_source(
+            session,
+            project_id,
+            source.id,
+            project.target_platforms,
+        )
+    except (ProviderError, PipelineError) as exc:
+        await _mark_project_failed(session, project_id, exc)
+        raise HTTPException(status_code=500, detail="Pipeline failed safely") from exc
+    except Exception as exc:
+        await _mark_project_failed(session, project_id, exc)
+        raise HTTPException(status_code=500, detail="Pipeline failed safely") from exc
+
+
+async def _complete_generation_for_source(
+    session: AsyncSession,
+    project_id: str,
+    source_id: str,
+    target_platforms: list[str],
+) -> PipelineResponse:
+    project = await ProjectRepository(session).get_by_id(project_id)
+    source = await SourceContentRepository(session).get_by_id(source_id)
+    if not project or not source:
+        raise HTTPException(status_code=404, detail="Project source not found")
+    context = ProjectContext(
+        category=project.category,
+        source_type=project.source_type,
+        content_style=project.content_style,
+        target_audience=project.target_audience,
+        audience_pain_points=project.audience_pain_points,
+        audience_knowledge_level=project.audience_knowledge_level,
+        content_goal=project.content_goal,
     )
+    cleaned_text, analysis_schema, generated = await run_text_pipeline(
+        source.raw_text, target_platforms=target_platforms, context=context
+    )
+    source.cleaned_text = cleaned_text
+    await _clear_generation_artifacts(session, source.id)
+    analysis = await AnalysisRepository(session).create(
+        source_content_id=source.id,
+        analysis_json=analysis_schema.model_dump(),
+    )
+    for item in generated:
+        generated_model = await GeneratedContentRepository(session).create(
+            analysis_id=analysis.id,
+            platform=item.platform,
+            content_type=item.content_type,
+            version=1,
+            source="generated",
+            content_json=item.content.model_dump()
+            if hasattr(item.content, "model_dump")
+            else dict(item.content),
+            markdown_export=item.markdown_export,
+        )
+        generated_model.content_group_id = generated_model.id
+        await session.flush()
+        await persist_score(session, generated_model.id, item.score)
+        item.id = generated_model.id
+        item.content_group_id = generated_model.id
+    project.status = "completed"
+    project.error_message = None
+    project.failure_stage = None
+    project.retryable = False
+    await session.commit()
+    return PipelineResponse(
+        source_content_id=source.id,
+        analysis_id=analysis.id,
+        analysis=analysis_schema,
+        generated_contents=generated,
+    )
+
+
+async def _clear_generation_artifacts(session: AsyncSession, source_id: str) -> None:
+    analysis_ids = select(ContentAnalysis.id).where(ContentAnalysis.source_content_id == source_id)
+    content_ids = select(GeneratedContent.id).where(GeneratedContent.analysis_id.in_(analysis_ids))
+    await session.execute(
+        delete(ContentScore).where(ContentScore.generated_content_id.in_(content_ids))
+    )
+    await session.execute(
+        delete(GeneratedContent).where(GeneratedContent.analysis_id.in_(analysis_ids))
+    )
+    await session.execute(
+        delete(ContentAnalysis).where(ContentAnalysis.source_content_id == source_id)
+    )
+    await session.flush()
+
+
+async def _mark_project_failed(
+    session: AsyncSession, project_id: str, exc: Exception
+) -> None:
+    await session.rollback()
+    project = await ProjectRepository(session).get_by_id(project_id)
+    if project:
+        project.status = "failed"
+        project.failure_stage = getattr(exc, "stage", "pipeline")
+        project.error_message = "Pipeline failed safely. Please retry."
+        project.retryable = getattr(exc, "retryable", True)
+        await session.commit()
 
 
 async def get_analysis(session: AsyncSession, project_id: str) -> ContentAnalysisSchema:

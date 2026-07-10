@@ -1,8 +1,10 @@
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.db.base import Base
+from app.models import ContentAnalysis, ContentScore, GeneratedContent, SourceContent
 from app.repositories import GeneratedContentRepository, ProjectRepository
 from app.schemas import (
     GeneratedContentUpdate,
@@ -24,6 +26,11 @@ from app.services.projects import (
     list_versions,
     retry_project,
 )
+
+
+async def table_count(session: AsyncSession, model: type) -> int:
+    return int(await session.scalar(select(func.count(model.id))))
+
 
 RAW_TEXT = (
     "内容创作者需要把一份长内容拆成多个平台版本。有效流程不是直接改写，"
@@ -117,6 +124,23 @@ async def test_score_persistence(session: AsyncSession) -> None:
     project_id, _ = await make_completed_project(session)
     contents = await list_project_contents(session, project_id)
     assert all(content.score.overall_score >= 70 for content in contents)
+    assert all(content.score.dimensions for content in contents)
+    assert all(content.score.score_version == "v2" for content in contents)
+    assert all(content.score.ai_risk_level in {"low", "medium", "high"} for content in contents)
+
+
+@pytest.mark.asyncio
+async def test_score_full_persistence_reload(session: AsyncSession) -> None:
+    project_id, _ = await make_completed_project(session)
+    contents = await list_project_contents(session, project_id)
+    selected = next(item for item in contents if item.platform == "douyin")
+    reloaded = await list_project_contents(session, project_id, platform="douyin")
+    assert reloaded[0].score.dimensions == selected.score.dimensions
+    assert reloaded[0].score.risk_flags == selected.score.risk_flags
+    assert reloaded[0].score.ai_risk_level == selected.score.ai_risk_level
+    assert reloaded[0].score.risk_reasons == selected.score.risk_reasons
+    assert reloaded[0].score.rewrite_suggestions == selected.score.rewrite_suggestions
+    assert reloaded[0].score.score_version == "v2"
 
 
 @pytest.mark.asyncio
@@ -170,6 +194,28 @@ async def test_rewrite_creates_version(session: AsyncSession) -> None:
     )
     assert rewritten.version == 2
     assert rewritten.source == "ai_rewrite"
+    assert rewritten.score.dimensions
+    assert rewritten.score.ai_risk_level in {"low", "medium", "high"}
+
+
+@pytest.mark.asyncio
+async def test_rewrite_version_score_persistence(session: AsyncSession) -> None:
+    project_id, _ = await make_completed_project(session)
+    content = (await list_project_contents(session, project_id))[0]
+    rewritten = await create_content_version(
+        session,
+        content.id,
+        RewriteRequest(
+            instruction="reduce AI tone",
+            target="both",
+            instruction_type="reduce_ai_tone",
+        ),
+        rewrite=True,
+    )
+    version = await get_version(session, content.id, rewritten.version)
+    assert version.score.score_version == "v2"
+    assert version.score.dimensions == rewritten.score.dimensions
+    assert version.score.ai_risk_level == rewritten.score.ai_risk_level
 
 
 @pytest.mark.asyncio
@@ -216,18 +262,74 @@ async def test_failed_project_status(
     failed = await ProjectRepository(session).get_by_id(project.id)
     assert failed.status == "failed"
     assert failed.retryable is True
+    assert await table_count(session, SourceContent) == 1
+    assert await table_count(session, ContentAnalysis) == 0
+    assert await table_count(session, GeneratedContent) == 0
+    assert await table_count(session, ContentScore) == 0
 
 
 @pytest.mark.asyncio
-async def test_retry_failed_project(session: AsyncSession) -> None:
-    project_id, _ = await make_completed_project(session)
-    project = await ProjectRepository(session).get_by_id(project_id)
-    project.status = "failed"
-    project.retryable = True
-    project.failure_stage = "provider_timeout"
-    await session.commit()
-    response = await retry_project(session, project_id)
+async def test_retry_failed_project(session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
+    project = await create_project(session, ProjectCreate(name="Retry Flow"))
+    import app.services.projects as project_service
+
+    real_pipeline = project_service.run_text_pipeline
+    calls = 0
+
+    async def flaky_pipeline(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise RuntimeError("temporary provider failure")
+        return await real_pipeline(*args, **kwargs)
+
+    monkeypatch.setattr("app.services.projects.run_text_pipeline", flaky_pipeline)
+    with pytest.raises(HTTPException):
+        await generate_project(
+            session,
+            project.id,
+            ProjectGenerateRequest(title="Retry Flow", raw_text=RAW_TEXT),
+        )
+    assert await table_count(session, SourceContent) == 1
+    assert await table_count(session, ContentAnalysis) == 0
+    response = await retry_project(session, project.id)
     assert response.generated_contents
+    assert await table_count(session, SourceContent) == 1
+    assert await table_count(session, ContentAnalysis) == 1
+    assert await table_count(session, GeneratedContent) == 3
+    assert await table_count(session, ContentScore) == 3
+    completed = await ProjectRepository(session).get_by_id(project.id)
+    assert completed.status == "completed"
+    assert completed.retryable is False
+
+
+@pytest.mark.asyncio
+async def test_second_retry_after_success_is_rejected(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project = await create_project(session, ProjectCreate(name="Retry Rejected"))
+    import app.services.projects as project_service
+
+    real_pipeline = project_service.run_text_pipeline
+    calls = 0
+
+    async def flaky_pipeline(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise RuntimeError("temporary provider failure")
+        return await real_pipeline(*args, **kwargs)
+
+    monkeypatch.setattr("app.services.projects.run_text_pipeline", flaky_pipeline)
+    with pytest.raises(HTTPException):
+        await generate_project(
+            session,
+            project.id,
+            ProjectGenerateRequest(title="Retry Rejected", raw_text=RAW_TEXT),
+        )
+    await retry_project(session, project.id)
+    with pytest.raises(HTTPException):
+        await retry_project(session, project.id)
 
 
 @pytest.mark.asyncio
