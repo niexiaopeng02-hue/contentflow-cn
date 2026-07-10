@@ -13,7 +13,12 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4.1-mini"
     provider_timeout_seconds: float = 30.0
     provider_max_retries: int = 2
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3100",
+        "http://127.0.0.1:3100",
+    ]
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
