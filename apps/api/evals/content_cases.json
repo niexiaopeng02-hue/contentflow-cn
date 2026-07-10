@@ -1,0 +1,17 @@
+[
+  {"category":"学习成长","target_audience":"大学生","content_goal":"education","platforms":["xiaohongshu","douyin","wechat"],"expected_core_topics":["学习计划","反馈"],"input":"我用30天重新建立学习习惯，每天只做一个小任务，晚上记录卡住的问题。真正有用的是即时反馈，而不是一次性制定很大的计划。"},
+  {"category":"职场","target_audience":"职场新人","content_goal":"education","platforms":["xiaohongshu","douyin","wechat"],"expected_core_topics":["沟通","复盘"],"input":"职场新人最容易忽略向上同步。不是每天汇报流水账，而是在关键节点说明进展、风险和需要的支持。这样协作成本会低很多。"},
+  {"category":"AI科技","target_audience":"AI beginners","content_goal":"education","platforms":["xiaohongshu","douyin","wechat"],"expected_core_topics":["AI学习","误区"],"input":"普通人学习AI不必先学复杂模型。先找一个真实任务，用一个工具完成结果，再复盘输入输出，比收藏大量教程更有效。"},
+  {"category":"健身","target_audience":"健身新手","content_goal":"education","platforms":["xiaohongshu","douyin"],"expected_core_topics":["训练计划","恢复"],"input":"新手健身前两个月不要追求重量。先建立动作稳定性、训练频率和恢复习惯，记录每次训练后的身体反馈。"},
+  {"category":"旅游","target_audience":"自由行用户","content_goal":"planning","platforms":["xiaohongshu","wechat"],"expected_core_topics":["交通","行程"],"input":"第一次去日本自由行，最容易低估交通和预约。每天安排两个核心区域，提前确认末班车，热门餐厅至少提前一周预约。"},
+  {"category":"生活方式","target_audience":"城市上班族","content_goal":"inspiration","platforms":["xiaohongshu","douyin"],"expected_core_topics":["整理","效率"],"input":"周末整理房间时，我发现真正影响状态的不是收纳盒，而是减少低频物品。留下常用物品后，日常维护会轻松很多。"},
+  {"category":"个人成长","target_audience":"普通读者","content_goal":"reflection","platforms":["wechat"],"expected_core_topics":["决策","精力"],"input":"很多人做计划失败，不是目标不清楚，而是没有估算精力成本。把目标拆小，同时保留休息时间，计划才更容易持续。"},
+  {"category":"教育","target_audience":"家长","content_goal":"education","platforms":["wechat","douyin"],"expected_core_topics":["阅读","陪伴"],"input":"孩子阅读兴趣不是靠打卡逼出来的。家长可以固定一个轻松时间，一起读短内容，再聊一个孩子感兴趣的问题。"},
+  {"category":"商业观点","target_audience":"创业者","content_goal":"analysis","platforms":["wechat"],"expected_core_topics":["定位","客户"],"input":"小团队做产品，最怕一开始就追求功能完整。更好的做法是锁定一个明确客户场景，先验证是否有人愿意反复使用。"},
+  {"category":"产品介绍","target_audience":"内容创作者","content_goal":"conversion","platforms":["xiaohongshu","wechat"],"expected_core_topics":["工作流","效率"],"input":"这个工具帮助创作者把长内容拆成不同平台素材。它先分析主题、观点和受众，再生成小红书、抖音和公众号版本。"},
+  {"category":"学习成长","target_audience":"自学者","content_goal":"education","platforms":["douyin"],"expected_core_topics":["练习","输出"],"input":"自学最重要的不是看了多少课程，而是有没有输出。每天用自己的话复述一个概念，再做一个小练习，进步会更稳定。"},
+  {"category":"职场","target_audience":"管理者","content_goal":"analysis","platforms":["wechat"],"expected_core_topics":["会议","决策"],"input":"低效会议通常不是因为大家不努力，而是会议前没有明确决策事项。开会前写清楚背景、选项和需要拍板的问题。"},
+  {"category":"AI科技","target_audience":"运营人员","content_goal":"education","platforms":["xiaohongshu","douyin"],"expected_core_topics":["提示词","场景"],"input":"写提示词不要从模板开始，而要从任务开始。先说明目标、上下文、输出格式和限制，再让模型给出可检查结果。"},
+  {"category":"健身","target_audience":"办公室人群","content_goal":"education","platforms":["xiaohongshu"],"expected_core_topics":["久坐","拉伸"],"input":"久坐人群不用一开始就办健身卡。每天固定三次起身活动，做简单拉伸和短走路，更容易长期坚持。"},
+  {"category":"旅游","target_audience":"亲子家庭","content_goal":"planning","platforms":["xiaohongshu","wechat"],"expected_core_topics":["亲子","节奏"],"input":"亲子旅行最重要的是节奏。每天不要安排太多景点，保留午休和临时调整时间，孩子和大人的体验都会更好。"}
+]
