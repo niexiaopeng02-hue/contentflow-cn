@@ -24,12 +24,22 @@ def json_type() -> sa.TypeEngine:
 def upgrade() -> None:
     dialect = op.get_bind().dialect.name
     op.add_column("content_scores", sa.Column("risk_details", json_type(), nullable=True))
-    op.execute(
-        """
-        UPDATE content_scores
-        SET risk_details = '{"ai_risk_level":"medium","risk_reasons":[],"rewrite_suggestions":[]}'
-        """
-    )
+    if dialect == "postgresql":
+        op.execute(
+            """
+            UPDATE content_scores
+            SET risk_details =
+              '{"ai_risk_level":"medium","risk_reasons":[],"rewrite_suggestions":[]}'::jsonb
+            """
+        )
+    else:
+        op.execute(
+            """
+            UPDATE content_scores
+            SET risk_details =
+              '{"ai_risk_level":"medium","risk_reasons":[],"rewrite_suggestions":[]}'
+            """
+        )
     if dialect != "sqlite":
         op.alter_column("content_scores", "risk_details", nullable=False)
 

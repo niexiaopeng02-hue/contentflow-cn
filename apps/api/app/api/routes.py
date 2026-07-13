@@ -134,7 +134,7 @@ async def get_markdown_export(project_id: str, session: SessionDep) -> Response:
     return Response(
         content=markdown,
         media_type="text/markdown; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{project_id}.md"'},
+        headers={"Content-Disposition": f'inline; filename="{project_id}.md"'},
     )
 
 

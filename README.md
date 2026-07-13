@@ -116,6 +116,8 @@ OPENAI_API_KEY=...
 
 `MockProvider` remains the default for local development and CI. `OpenAIProvider` performs real HTTP requests, applies timeouts, retries transient failures, and validates JSON responses with Pydantic schemas. Real AI quality depends on the selected provider and prompt configuration.
 
+OpenAI status: implemented, not live verified in this repository unless `scripts/real_ai_smoke.py` succeeds with a valid `OPENAI_API_KEY`.
+
 Provider interface methods:
 
 - `analyze_content`
@@ -195,6 +197,8 @@ Content Score V2 combines rule-based checks with provider-compatible evaluation 
 - AI risk level, reasons, and rewrite suggestions
 
 Content Score is an internal heuristic and AI-assisted quality signal, not a guarantee of engagement, traffic, or commercial performance.
+
+Score V2 persistence is verified for `dimensions`, `risk_flags`, `score_version`, `ai_risk_level`, `risk_reasons`, and `rewrite_suggestions`. Risk detail fields are persisted in `content_scores.risk_details`.
 
 Platform output coverage:
 
@@ -345,6 +349,59 @@ python evals/run_content_eval.py
 
 The eval set contains 15 Chinese content cases and checks schema validity, platform differentiation, required fields, content length, AI risk, keyword preservation, and requested platforms. The current MockProvider heuristic eval passes 15/15 cases. It does not claim to predict real traffic.
 
+## Verified Locally
+
+- Backend tests: 41 passed
+- Backend lint: Ruff passed
+- Frontend typecheck: passed
+- Frontend build: passed
+- Heuristic eval: 15/15 passed
+- Browser E2E: core workflow verified in MockProvider mode
+- PostgreSQL: migration and integration flow verified against a real Neon PostgreSQL test database
+
+## Browser E2E
+
+The core browser workflow was verified locally with the in-app browser:
+
+```text
+Landing -> Dashboard -> Create Project -> Generate -> Workspace -> Analysis
+-> Xiaohongshu/Douyin/WeChat outputs -> Edit -> Version 2
+-> reduce_ai_tone Rewrite -> Version 3 -> Compare -> Export Markdown
+```
+
+Known browser verification gap:
+
+- Direct browser navigation to the local API Markdown export URL was blocked by the browser surface with `ERR_BLOCKED_BY_CLIENT`.
+- The Export Markdown button was clicked successfully.
+- The Markdown endpoint returned HTTP 200 and contained all three platform sections.
+
+## PostgreSQL Verification
+
+PostgreSQL runtime verification was completed against a temporary Neon test database.
+
+Verified:
+
+- Fresh Alembic migration to `20260710_0003`
+- Migration chain `0001 -> 0002 -> 0003`
+- PostgreSQL boolean/JSONB migration compatibility
+- Project/source/analysis/generated content/score persistence
+- Score V2 `risk_details` persistence
+- Version history up to Version 3
+- Rewrite
+- Retry without duplicate source/analysis rows
+- Markdown export
+- Delete behavior
+
+## GitHub Actions
+
+CI is defined in `.github/workflows/ci.yml` with separate jobs:
+
+- Backend Unit, Lint, Eval
+- Frontend Typecheck and Build
+- PostgreSQL Integration with a PostgreSQL 17 service
+
+PostgreSQL integration tests are marked with `pytest.mark.postgres` and run only in the PostgreSQL job or when `POSTGRES_TEST_DATABASE_URL` is configured.
+
 ## Current Limitations
 
 - MockProvider is the default AI path.
@@ -358,6 +415,7 @@ The eval set contains 15 Chinese content cases and checks schema validity, platf
 - No complex team permissions.
 - Version compare is side-by-side, not semantic diff.
 - Docker configuration exists, but Docker was not runtime verified locally in this environment.
+- Deployment is not ready until GitHub CI has run successfully on the remote repository.
 
 ## Next Phase
 

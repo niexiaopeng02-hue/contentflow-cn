@@ -33,10 +33,18 @@ def upgrade() -> None:
     op.add_column("projects", sa.Column("failure_stage", sa.String(length=80), nullable=True))
     op.add_column("projects", sa.Column("retryable", sa.Boolean(), nullable=True))
     op.execute("UPDATE projects SET content_style = 'knowledge_practical'")
-    op.execute("UPDATE projects SET audience_pain_points = '[]'")
+    if dialect == "postgresql":
+        op.execute("UPDATE projects SET audience_pain_points = '[]'::jsonb")
+    else:
+        op.execute("UPDATE projects SET audience_pain_points = '[]'")
     op.execute("UPDATE projects SET audience_knowledge_level = 'beginner'")
     op.execute("UPDATE projects SET content_goal = 'education'")
-    op.execute("UPDATE projects SET retryable = 0")
+    retryable_default_sql = (
+        "UPDATE projects SET retryable = FALSE"
+        if dialect == "postgresql"
+        else "UPDATE projects SET retryable = 0"
+    )
+    op.execute(retryable_default_sql)
     if dialect != "sqlite":
         op.alter_column("projects", "content_style", nullable=False)
         op.alter_column("projects", "audience_pain_points", nullable=False)
@@ -47,8 +55,12 @@ def upgrade() -> None:
     op.add_column("content_scores", sa.Column("dimensions", json_type(), nullable=True))
     op.add_column("content_scores", sa.Column("risk_flags", json_type(), nullable=True))
     op.add_column("content_scores", sa.Column("score_version", sa.String(length=20), nullable=True))
-    op.execute("UPDATE content_scores SET dimensions = '{}'")
-    op.execute("UPDATE content_scores SET risk_flags = '[]'")
+    if dialect == "postgresql":
+        op.execute("UPDATE content_scores SET dimensions = '{}'::jsonb")
+        op.execute("UPDATE content_scores SET risk_flags = '[]'::jsonb")
+    else:
+        op.execute("UPDATE content_scores SET dimensions = '{}'")
+        op.execute("UPDATE content_scores SET risk_flags = '[]'")
     op.execute("UPDATE content_scores SET score_version = 'v2'")
     if dialect != "sqlite":
         op.alter_column("content_scores", "dimensions", nullable=False)

@@ -1,46 +1,104 @@
 # PostgreSQL Verification
 
-Status: NOT EXECUTED
+Status: VERIFIED
 
-## Reason
+Provider: Neon temporary test database
 
-This environment does not currently expose a usable PostgreSQL target:
+Project:
+- `contentflow-cn-runtime-test`
+- Project ID: `winter-bar-02981125`
+- Region: `aws-us-east-1`
+- PostgreSQL version: 17
+- Cleanup: temporary Neon project was deleted after verification.
 
-- `docker --version` failed because Docker is not installed or not available on PATH.
-- `POSTGRES_TEST_DATABASE_URL` is not set.
+Secrets:
+- The connection string was used only through environment variables.
+- No database credentials were written to project files or committed.
 
-No PostgreSQL result has been fabricated.
+## Migration Verification
 
-## Required Verification Steps
-
-Set a real PostgreSQL test database URL:
-
-```powershell
-$env:POSTGRES_TEST_DATABASE_URL="postgresql+asyncpg://user:password@host:5432/contentflow_test"
-```
-
-Then run from `apps/api`:
+Fresh migration command:
 
 ```powershell
 $env:DATABASE_URL=$env:POSTGRES_TEST_DATABASE_URL
-alembic upgrade head
-python -m pytest
+python -m alembic upgrade head
 ```
 
-The PostgreSQL verification must cover:
+Result: PASS
 
-- Fresh migration install
-- Table creation
-- Project creation
+Observed migration chain:
+
+```text
+Running upgrade  -> 20260710_0001, initial schema
+Running upgrade 20260710_0001 -> 20260710_0002, ai quality fields
+Running upgrade 20260710_0002 -> 20260710_0003, score risk details
+```
+
+Current revision:
+
+```text
+20260710_0003
+```
+
+Runtime issue found and fixed:
+
+- PostgreSQL rejected `UPDATE projects SET retryable = 0` because `retryable` is boolean.
+- Migration `20260710_0002` now uses PostgreSQL-specific boolean and JSONB updates.
+- Migration `20260710_0003` now uses PostgreSQL-specific JSONB update for `risk_details`.
+
+## PostgreSQL Integration Test
+
+Command:
+
+```powershell
+$env:POSTGRES_TEST_DATABASE_URL="..."
+python -m pytest -m postgres -q
+```
+
+Result:
+
+```text
+1 passed, 41 deselected
+```
+
+Covered:
+
+- Project create
 - Source persistence
 - Analysis persistence
-- Generated contents persistence
-- Full score persistence
+- Generated contents
+- Score full persistence
 - Version history
 - Rewrite
-- Retry
+- Retry failed project
 - Markdown export
+- Delete behavior
+- `risk_details` persistence
 
-## Current Status
+## Direct Data Verification
 
-SQLite-based tests pass, but they are not a substitute for PostgreSQL runtime verification.
+Final retained PostgreSQL data snapshot:
+
+```text
+sources: 1
+analyses: 1
+contents: 5
+scores: 5
+max_version: 3
+risk_rows: 5
+```
+
+Direct database checks:
+
+```text
+revision: 20260710_0003
+table_count: 7
+risk_details_column: 1
+source_duplicate_groups: 0
+analysis_duplicate_groups: 0
+orphan_scores: 0
+```
+
+## Status
+
+PostgreSQL runtime, migration flow, JSONB score details, retry behavior, versioning, and content persistence are verified against a real PostgreSQL database.

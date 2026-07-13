@@ -48,15 +48,23 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function load() {
+  async function load(preferredContentId?: string, preferredPlatform?: string) {
     setLoading(true);
     setError(null);
     try {
       const data = await getProject(projectId);
       setProject(data);
-      const first = data.generated_contents[0] ?? null;
-      setSelected(first);
-      if (first) setActive(first.platform);
+      const preferred =
+        data.generated_contents.find(
+          (item) =>
+            item.id === preferredContentId ||
+            item.content_group_id === preferredContentId ||
+            item.platform === preferredPlatform,
+        ) ??
+        data.generated_contents[0] ??
+        null;
+      setSelected(preferred);
+      if (preferred) setActive(preferred.platform);
     } catch (err) {
       setError(err instanceof Error ? err.message : "无法加载项目");
     } finally {
@@ -100,7 +108,7 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
     try {
       const next = await updateGeneratedContent(selected.id, nextContent);
       setSelected(next);
-      await load();
+      await load(next.content_group_id ?? next.id, next.platform);
       setMessage("已保存为新版本");
     } catch (err) {
       setError(err instanceof Error ? err.message : "保存失败");
@@ -120,7 +128,7 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
         target: "full_content",
       });
       setSelected(next);
-      await load();
+      await load(next.content_group_id ?? next.id, next.platform);
       setMessage("Rewrite 已生成新版本");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Rewrite 失败");
@@ -171,7 +179,7 @@ export function ProjectWorkspace({ projectId }: { projectId: string }) {
             <p className="mt-1 text-sm text-muted-foreground">{project?.status} · {project?.category} · {project?.source_type}</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={load}>
+            <Button variant="outline" onClick={() => load()}>
               <RefreshCw className="h-4 w-4" /> 刷新
             </Button>
             <Button variant="outline" onClick={downloadExport}>
