@@ -402,6 +402,16 @@ CI is defined in `.github/workflows/ci.yml` with separate jobs:
 
 PostgreSQL integration tests are marked with `pytest.mark.postgres` and run only in the PostgreSQL job or when `POSTGRES_TEST_DATABASE_URL` is configured.
 
+Remote CI verification:
+
+- Repository: `https://github.com/niexiaopeng02-hue/contentflow-cn`
+- Verified commit: `c5d53b6c746888a0ac00e038aa860efcf8ff474b`
+- Workflow run: `29221562033`
+- Workflow status: passed
+- Backend Unit, Lint, Eval: passed
+- Frontend Typecheck and Build: passed
+- PostgreSQL Integration: passed
+
 ## Current Limitations
 
 - MockProvider is the default AI path.
@@ -415,7 +425,7 @@ PostgreSQL integration tests are marked with `pytest.mark.postgres` and run only
 - No complex team permissions.
 - Version compare is side-by-side, not semantic diff.
 - Docker configuration exists, but Docker was not runtime verified locally in this environment.
-- Deployment is not ready until GitHub CI has run successfully on the remote repository.
+- Deployment has not started. GitHub remote CI is passing.
 
 ## Next Phase
 

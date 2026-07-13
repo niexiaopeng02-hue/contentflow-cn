@@ -42,12 +42,17 @@ PostgreSQL:
 
 CI:
 - GitHub Actions workflow added for backend, frontend, and PostgreSQL integration jobs.
+- GitHub repository: `https://github.com/niexiaopeng02-hue/contentflow-cn`
+- Latest remote CI-verified commit: `c5d53b6c746888a0ac00e038aa860efcf8ff474b`
+- GitHub Actions workflow run: `29221562033`
+- Backend Unit, Lint, Eval: PASS
+- Frontend Typecheck and Build: PASS
+- PostgreSQL Integration: PASS
 
 ## Implemented But Not Runtime Verified
 
 - OpenAIProvider
 - Docker Compose
-- GitHub Actions remote run results
 
 ## Score Persistence
 
@@ -91,4 +96,4 @@ Browser E2E core flow is PASS:
 - The current baseline is an MVP code baseline, not proof of production readiness.
 - Real OpenAI API execution remains not live verified unless `AI_PROVIDER=openai` and a valid `OPENAI_API_KEY` smoke test succeeds.
 - PostgreSQL runtime has been verified against a temporary Neon test database, not a production database.
-- Deployment readiness still depends on pushing to GitHub and observing CI results.
+- GitHub remote and CI are verified. Deployment has not started.
