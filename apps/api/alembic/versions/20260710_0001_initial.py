@@ -8,6 +8,7 @@ from collections.abc import Sequence
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.types import TypeEngine
 
 from alembic import op
 
@@ -17,7 +18,7 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
-def json_type() -> sa.TypeEngine:
+def json_type() -> TypeEngine:
     return postgresql.JSONB() if op.get_bind().dialect.name == "postgresql" else sa.JSON()
 
 
