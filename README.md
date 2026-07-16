@@ -412,6 +412,29 @@ Remote CI verification:
 - Frontend Typecheck and Build: passed
 - PostgreSQL Integration: passed
 
+## Live Demo
+
+Public deployment is verified in MockProvider mode:
+
+- Frontend: `https://web-puce-kappa-40.vercel.app`
+- Backend API: `https://contentflow-cn.onrender.com`
+- Health check: `https://contentflow-cn.onrender.com/api/v1/health`
+- API docs: `https://contentflow-cn.onrender.com/docs`
+- Deployment verification: `DEPLOYMENT_VERIFICATION.md`
+- Screenshots: `docs/screenshots/`
+
+Public verification passed:
+
+- Health check
+- API docs
+- CORS from Vercel frontend origin
+- MVP project creation
+- Text generation pipeline
+- Three generated platform outputs
+- Project detail loading
+- Markdown export
+- Browser rendering for landing, dashboard, create page, analysis, platform outputs, version history, score panel, and export download
+
 ## Current Limitations
 
 - MockProvider is the default AI path.
@@ -425,7 +448,9 @@ Remote CI verification:
 - No complex team permissions.
 - Version compare is side-by-side, not semantic diff.
 - Docker configuration exists, but Docker was not runtime verified locally in this environment.
-- Deployment has not started. GitHub remote CI is passing.
+- Public deployment is verified on Vercel + Render in MockProvider mode.
+- Several Chinese UI strings are currently mojibake in source and deployed UI; this should be fixed in a dedicated UI text cleanup round.
+- A full optional-metadata project create payload returned HTTP 500 once during public deployment verification, while the MVP project create/generate/export flow passed.
 
 ## Next Phase
 

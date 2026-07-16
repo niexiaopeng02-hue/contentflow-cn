@@ -49,6 +49,18 @@ CI:
 - Frontend Typecheck and Build: PASS
 - PostgreSQL Integration: PASS
 
+Deployment:
+- Frontend is deployed on Vercel: `https://web-puce-kappa-40.vercel.app`
+- Backend is deployed on Render: `https://contentflow-cn.onrender.com`
+- Public health check: PASS
+- Public API docs: PASS
+- Public CORS check from the Vercel origin: PASS
+- Public MVP create/generate/project/export smoke test: PASS
+- Public browser E2E: PASS
+- Public demo AI provider: MockProvider
+- Deployment evidence: `DEPLOYMENT_VERIFICATION.md`
+- Screenshots: `docs/screenshots/`
+
 ## Implemented But Not Runtime Verified
 
 - OpenAIProvider
@@ -96,4 +108,5 @@ Browser E2E core flow is PASS:
 - The current baseline is an MVP code baseline, not proof of production readiness.
 - Real OpenAI API execution remains not live verified unless `AI_PROVIDER=openai` and a valid `OPENAI_API_KEY` smoke test succeeds.
 - PostgreSQL runtime has been verified against a temporary Neon test database, not a production database.
-- GitHub remote and CI are verified. Deployment has not started.
+- GitHub remote and CI are verified.
+- Public Vercel + Render deployment is verified in MockProvider mode.
