@@ -81,15 +81,14 @@ Direct SQL count verification was not written into this repository because produ
 
 ## GitHub Actions
 
-Remote CI is green before this deployment documentation update:
+Remote CI is green after the deployment documentation update:
 
 - Workflow: `ContentFlow CN CI`
-- Latest verified run before this document: `29221865608`
+- Latest verified commit: `f5d4f9a99cbc733fe67817b38d3cdb9a10b8db87`
+- Latest verified run: `29469984003`
 - Backend Unit, Lint, Eval: PASS
 - Frontend Typecheck and Build: PASS
 - PostgreSQL Integration: PASS
-
-After this deployment documentation commit is pushed, GitHub Actions should be checked again and this file should be updated only with real passed results.
 
 ## Known Issues
 

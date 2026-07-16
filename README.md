@@ -405,8 +405,8 @@ PostgreSQL integration tests are marked with `pytest.mark.postgres` and run only
 Remote CI verification:
 
 - Repository: `https://github.com/niexiaopeng02-hue/contentflow-cn`
-- Verified commit: `c5d53b6c746888a0ac00e038aa860efcf8ff474b`
-- Workflow run: `29221562033`
+- Verified commit: `f5d4f9a99cbc733fe67817b38d3cdb9a10b8db87`
+- Workflow run: `29469984003`
 - Workflow status: passed
 - Backend Unit, Lint, Eval: passed
 - Frontend Typecheck and Build: passed

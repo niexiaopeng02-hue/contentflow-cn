@@ -43,8 +43,8 @@ PostgreSQL:
 CI:
 - GitHub Actions workflow added for backend, frontend, and PostgreSQL integration jobs.
 - GitHub repository: `https://github.com/niexiaopeng02-hue/contentflow-cn`
-- Latest remote CI-verified commit: `c5d53b6c746888a0ac00e038aa860efcf8ff474b`
-- GitHub Actions workflow run: `29221562033`
+- Latest remote CI-verified commit: `f5d4f9a99cbc733fe67817b38d3cdb9a10b8db87`
+- GitHub Actions workflow run: `29469984003`
 - Backend Unit, Lint, Eval: PASS
 - Frontend Typecheck and Build: PASS
 - PostgreSQL Integration: PASS
